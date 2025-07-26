@@ -1,0 +1,119 @@
+{
+  "name": "vulnerability-scanner-pro",
+  "displayName": "Vulnerability Scanner Pro",
+  "description": "Advanced vulnerability scanner supporting all languages with OWASP Top 10 and SANS Top 25 detection and auto-fix capabilities",
+  "version": "1.0.0",
+  "publisher": "security-tools",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "security",
+    "vulnerability",
+    "OWASP",
+    "SANS",
+    "scanner",
+    "fix"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vulnerabilityScanner.scanWorkspace",
+        "title": "Scan Workspace for Vulnerabilities",
+        "category": "Security"
+      },
+      {
+        "command": "vulnerabilityScanner.scanFile",
+        "title": "Scan Current File",
+        "category": "Security"
+      },
+      {
+        "command": "vulnerabilityScanner.fixVulnerability",
+        "title": "Fix Vulnerability",
+        "category": "Security"
+      },
+      {
+        "command": "vulnerabilityScanner.showReport",
+        "title": "Show Security Report",
+        "category": "Security"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "vulnerabilityScanner",
+          "name": "Security Scanner",
+          "when": "workspaceHasVulnerabilities"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "security",
+          "title": "Security",
+          "icon": "$(shield)"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Vulnerability Scanner",
+      "properties": {
+        "vulnerabilityScanner.enableAutoScan": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic scanning on file save"
+        },
+        "vulnerabilityScanner.scanOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan workspace on startup"
+        },
+        "vulnerabilityScanner.severity": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "default": "medium",
+          "description": "Minimum severity level to report"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "vulnerabilityScanner.scanFile",
+          "when": "editorTextFocus",
+          "group": "security"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "vulnerabilityScanner.scanWorkspace",
+          "group": "security"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "semver": "^7.3.8",
+    "node-sql-parser": "^4.9.0",
+    "js-yaml": "^4.1.0"
+  }
+}
