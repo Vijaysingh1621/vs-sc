@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ScanResult, Vulnerability } from '../scanner/vulnerabilityScanner';
+import axios from 'axios';
 
 export class SecurityTreeProvider implements vscode.TreeDataProvider<SecurityTreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<SecurityTreeItem | undefined | null | void> = new vscode.EventEmitter<SecurityTreeItem | undefined | null | void>();
@@ -122,17 +123,42 @@ export class SecurityTreeProvider implements vscode.TreeDataProvider<SecurityTre
         } else if (element.contextValue === 'severity' && element.vulnerabilities) {
             // Show individual vulnerabilities
             const items: SecurityTreeItem[] = [];
-            
             for (const vuln of element.vulnerabilities) {
+                const contextVal = vuln.fixable ? 'fixable-vulnerability' : 'vulnerability';
                 const item = new SecurityTreeItem(
                     `${vuln.title} (Line ${vuln.line})`,
                     vscode.TreeItemCollapsibleState.None,
-                    'vulnerability',
+                    contextVal,
                     element.scanResult,
                     [vuln]
                 );
-                
-                item.tooltip = `${vuln.description}\n\nRecommendation: ${vuln.recommendation}`;
+
+                // Deterministic security score calculation based on severity and type
+                const baseScore = getBaseScore(vuln.severity);
+                const typeScore = getTypeScore(vuln.type);
+                const score = Math.max(1, Math.min(10, baseScore + typeScore));
+
+                // Enhanced tooltip UI (Markdown) with Security Score and AI Fix button
+                let md = new vscode.MarkdownString();
+                md.appendMarkdown('---\n');
+                md.appendMarkdown(`**$(bug) ${vuln.title}**  (Line ${vuln.line})\n\n`);
+                md.appendMarkdown(`> ${vuln.description}\n\n`);
+                md.appendMarkdown(`**Severity:** $(flame) ${capitalize(vuln.severity)}  `);
+                md.appendMarkdown(`**Security Score:** $(star-full) **${score}/10**\n`);
+                if (vuln.cwe) md.appendMarkdown(`**CWE:** ${vuln.cwe}\n`);
+                md.appendMarkdown(`**Category:** ${vuln.category}\n`);
+                md.appendMarkdown('---\n');
+                md.appendMarkdown('**Recommendation:**\n');
+                md.appendMarkdown(`- ${vuln.recommendation}\n`);
+                md.appendMarkdown('\n---\n');
+                md.appendMarkdown('$(file-code) **Code:**\n\n');
+                md.appendCodeblock(vuln.code);
+                md.appendMarkdown('\n---\n');
+                // Always show Fix with AI button, on a new line, with extra spacing for visibility
+                md.appendMarkdown(`\n[🧠 **Fix with AI**](command:securityTreeProvider.fixWithAI?${encodeURIComponent(JSON.stringify(vuln))} "Let Gemini AI suggest a fix for this vulnerability and apply it in your code.")\n`);
+                md.isTrusted = true;
+                item.tooltip = md;
+
                 item.command = {
                     command: 'vscode.open',
                     title: 'Open',
@@ -149,12 +175,117 @@ export class SecurityTreeProvider implements vscode.TreeDataProvider<SecurityTre
                     ]
                 };
 
-                if (vuln.fixable) {
-                    item.contextValue = 'fixable-vulnerability';
-                }
-
                 items.push(item);
             }
+// --- Gemini AI Fix Command Registration ---
+if (!(globalThis as any)._securityTreeProviderFixWithAIRegistered) {
+    (globalThis as any)._securityTreeProviderFixWithAIRegistered = true;
+    vscode.commands.registerCommand('securityTreeProvider.fixWithAI', async (vuln: Vulnerability) => {
+        try {
+            const editor = await vscode.window.showTextDocument(vscode.Uri.file(vuln.file));
+            const document = editor.document;
+            const range = new vscode.Range(
+                vuln.line - 1,
+                vuln.column,
+                vuln.line - 1,
+                vuln.column + vuln.length
+            );
+            const originalCode = document.getText(range);
+
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Gemini AI: Generating fix for vulnerability...'
+            }, async () => {
+                // Call Gemini API via Axios
+                const apiKey = process.env.GEMINI_API_KEY || '';
+                if (!apiKey) {
+                    vscode.window.showErrorMessage('Gemini API key not set. Please set GEMINI_API_KEY in your environment.');
+                    return;
+                }
+                const prompt = `You are a security code assistant. Given the following vulnerable code, provide a secure fixed version.\n\nVulnerable code:\n${originalCode}\n\nVulnerability: ${vuln.title}\nDescription: ${vuln.description}\nRecommendation: ${vuln.recommendation}\n\nReturn ONLY the fixed code, no explanation.`;
+                try {
+                    const response = await axios.post(
+                        'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+                        {
+                            contents: [{ parts: [{ text: prompt }] }]
+                        },
+                        {
+                            headers: { 'Content-Type': 'application/json' },
+                            params: { key: apiKey }
+                        }
+                    );
+                    const fixedCode = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                    if (fixedCode && fixedCode !== originalCode) {
+                        const edit = new vscode.WorkspaceEdit();
+                        edit.replace(document.uri, range, fixedCode);
+                        await vscode.workspace.applyEdit(edit);
+                        await document.save();
+                        vscode.window.showInformationMessage('Gemini AI fix applied!');
+                    } else {
+                        vscode.window.showWarningMessage('Gemini AI did not return a fix or the fix is identical to the original code.');
+                    }
+                } catch (err: any) {
+                    vscode.window.showErrorMessage('Gemini API error: ' + (err?.message || err));
+                }
+            });
+        } catch (e: any) {
+            vscode.window.showErrorMessage('Failed to apply Gemini AI fix: ' + (e?.message || e));
+        }
+    });
+}
+// --- Security Score Calculation Helpers ---
+function getBaseScore(severity: string): number {
+    switch (severity) {
+        case 'critical': return 9;
+        case 'high': return 7;
+        case 'medium': return 5;
+        case 'low': return 3;
+        default: return 1;
+    }
+}
+
+function getTypeScore(type: string): number {
+    // Deterministic mapping for known types (OWASP/SANS)
+    // Higher risk types get a higher bonus
+    const typeMap: { [key: string]: number } = {
+        // OWASP
+        'broken-access-control': 1,
+        'crypto-failures': 1,
+        'injection': 2,
+        'insecure-design': 1,
+        'security-misconfiguration': 0,
+        'vulnerable-components': 1,
+        'auth-failures': 2,
+        'integrity-failures': 1,
+        'logging-failures': 0,
+        'ssrf': 2,
+        // SANS
+        'sql-injection': 2,
+        'command-injection': 2,
+        'xss': 1,
+        'buffer-overflow': 2,
+        'csrf': 1,
+        'path-traversal': 1,
+        'unrestricted-upload': 1,
+        'hardcoded-credentials': 1,
+        'improper-authorization': 1,
+        'incorrect-permissions': 0,
+        'info-exposure': 0,
+        'weak-crypto': 0,
+        'integer-overflow': 1,
+        'null-pointer': 0,
+        'code-injection': 2,
+        'xxe': 1,
+        'deserialization': 2,
+        'oob-read': 0,
+        'input-validation': 1
+    };
+    return typeMap[type] ?? 0;
+}
+
+function capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
             return Promise.resolve(items);
         }

@@ -41,7 +41,8 @@ class DiagnosticsManager {
         const diagnostics = [];
         for (const vuln of vulnerabilities) {
             const range = new vscode.Range(vuln.line - 1, vuln.column, vuln.line - 1, vuln.column + vuln.length);
-            const diagnostic = new vscode.Diagnostic(range, `${vuln.title}: ${vuln.description}`, this.getSeverityLevel(vuln.severity));
+            // Always use Warning for all vulnerabilities (yellow underline only)
+            const diagnostic = new vscode.Diagnostic(range, `${vuln.title}: ${vuln.description}`, vscode.DiagnosticSeverity.Warning);
             diagnostic.code = vuln.cwe;
             diagnostic.source = `Security Scanner (${vuln.category})`;
             // Add related information
@@ -57,20 +58,6 @@ class DiagnosticsManager {
             diagnostics.push(diagnostic);
         }
         this.diagnosticCollection.set(fileUri, diagnostics);
-    }
-    getSeverityLevel(severity) {
-        switch (severity) {
-            case 'critical':
-                return vscode.DiagnosticSeverity.Error;
-            case 'high':
-                return vscode.DiagnosticSeverity.Error;
-            case 'medium':
-                return vscode.DiagnosticSeverity.Warning;
-            case 'low':
-                return vscode.DiagnosticSeverity.Information;
-            default:
-                return vscode.DiagnosticSeverity.Warning;
-        }
     }
     dispose() {
         this.diagnosticCollection.dispose();

@@ -29,10 +29,11 @@ export class DiagnosticsManager {
                 vuln.column + vuln.length
             );
 
+            // Always use Warning for all vulnerabilities (yellow underline only)
             const diagnostic = new vscode.Diagnostic(
                 range,
                 `${vuln.title}: ${vuln.description}`,
-                this.getSeverityLevel(vuln.severity)
+                vscode.DiagnosticSeverity.Warning
             );
 
             diagnostic.code = vuln.cwe;
@@ -57,21 +58,6 @@ export class DiagnosticsManager {
         }
 
         this.diagnosticCollection.set(fileUri, diagnostics);
-    }
-
-    private getSeverityLevel(severity: string): vscode.DiagnosticSeverity {
-        switch (severity) {
-            case 'critical':
-                return vscode.DiagnosticSeverity.Error;
-            case 'high':
-                return vscode.DiagnosticSeverity.Error;
-            case 'medium':
-                return vscode.DiagnosticSeverity.Warning;
-            case 'low':
-                return vscode.DiagnosticSeverity.Information;
-            default:
-                return vscode.DiagnosticSeverity.Warning;
-        }
     }
 
     dispose(): void {
