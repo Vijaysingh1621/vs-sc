@@ -64,6 +64,23 @@ export function activate(context: vscode.ExtensionContext) {
         }
     );
 
+    const setupGeminiCommand = vscode.commands.registerCommand(
+        'vulnerabilityScanner.setupGemini',
+        async () => {
+            const apiKey = await vscode.window.showInputBox({
+                prompt: 'Enter your Gemini API Key',
+                password: true,
+                placeHolder: 'Get your API key from https://makersuite.google.com/app/apikey'
+            });
+            
+            if (apiKey) {
+                // Store in VS Code settings
+                await vscode.workspace.getConfiguration('vulnerabilityScanner').update('geminiApiKey', apiKey, vscode.ConfigurationTarget.Global);
+                vscode.window.showInformationMessage('Gemini API key saved successfully!');
+            }
+        }
+    );
+
     // Register event listeners
     const onDidSaveDocument = vscode.workspace.onDidSaveTextDocument(
         async (document) => {
@@ -88,6 +105,7 @@ export function activate(context: vscode.ExtensionContext) {
         scanFileCommand,
         fixVulnerabilityCommand,
         showReportCommand,
+        setupGeminiCommand,
         onDidSaveDocument,
         onDidOpenTextDocument,
         treeView

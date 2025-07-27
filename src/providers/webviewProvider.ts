@@ -27,6 +27,9 @@ export class VulnerabilityWebviewProvider implements vscode.WebviewViewProvider 
                 case 'fixVulnerability':
                     vscode.commands.executeCommand('vulnerabilityScanner.fixVulnerability', data.vulnerability);
                     break;
+                case 'fixWithAI':
+                    vscode.commands.executeCommand('securityTreeProvider.fixWithAI', data.vulnerability);
+                    break;
                 case 'openFile':
                     vscode.commands.executeCommand('vscode.open', 
                         vscode.Uri.file(data.file), 
@@ -214,6 +217,15 @@ export class VulnerabilityWebviewProvider implements vscode.WebviewViewProvider 
                     color: var(--vscode-button-secondaryForeground);
                 }
                 
+                .btn-ai-fix {
+                    background: #4CAF50;
+                    color: white;
+                }
+                
+                .btn-ai-fix:hover {
+                    background: #45a049;
+                }
+                
                 .empty-state {
                     text-align: center;
                     padding: 40px;
@@ -349,6 +361,7 @@ export class VulnerabilityWebviewProvider implements vscode.WebviewViewProvider 
                                             📍 Go to Code
                                         </button>
                                         \${vuln.fixable ? \`<button class="btn btn-fix" onclick="fixVulnerability('\${vuln.id}')">🔧 Auto Fix</button>\` : ''}
+                                        <button class="btn btn-ai-fix" onclick="fixWithAI('\${vuln.id}')">🧠 Fix with AI</button>
                                     </div>
                                 </div>
                             </div>
@@ -381,6 +394,19 @@ export class VulnerabilityWebviewProvider implements vscode.WebviewViewProvider 
                     if (vuln) {
                         vscode.postMessage({
                             type: 'fixVulnerability',
+                            vulnerability: vuln
+                        });
+                    }
+                }
+
+                function fixWithAI(vulnId) {
+                    const vuln = currentResults
+                        .flatMap(r => r.vulnerabilities)
+                        .find(v => v.id === vulnId);
+                    
+                    if (vuln) {
+                        vscode.postMessage({
+                            type: 'fixWithAI',
                             vulnerability: vuln
                         });
                     }

@@ -44,6 +44,11 @@
         "command": "vulnerabilityScanner.showReport",
         "title": "Show Security Report",
         "category": "Security"
+      },
+      {
+        "command": "vulnerabilityScanner.setupGemini",
+        "title": "Setup Gemini AI API Key",
+        "category": "Security"
       }
     ],
     "views": {
@@ -82,6 +87,11 @@
           "enum": ["low", "medium", "high", "critical"],
           "default": "medium",
           "description": "Minimum severity level to report"
+        },
+        "vulnerabilityScanner.geminiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Gemini API key for AI-powered vulnerability fixes"
         }
       }
     },
@@ -114,6 +124,7 @@
   "dependencies": {
     "semver": "^7.3.8",
     "node-sql-parser": "^4.9.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.0",
+    "axios": "^1.6.0"
   }
 }
