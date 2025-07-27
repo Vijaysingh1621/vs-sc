@@ -84,7 +84,12 @@
         },
         "vulnerabilityScanner.severity": {
           "type": "string",
-          "enum": ["low", "medium", "high", "critical"],
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
           "default": "medium",
           "description": "Minimum severity level to report"
         },
@@ -122,9 +127,9 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "semver": "^7.3.8",
-    "node-sql-parser": "^4.9.0",
+    "axios": "^1.11.0",
     "js-yaml": "^4.1.0",
-    "axios": "^1.6.0"
+    "node-sql-parser": "^4.9.0",
+    "semver": "^7.3.8"
   }
 }
